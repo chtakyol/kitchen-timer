@@ -4,15 +4,19 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.*
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import androidx.navigation.fragment.findNavController
 import com.toolscompany.kitchentimer.R
+import com.toolscompany.kitchentimer.other.Constants.ACTION_PAUSE
 import com.toolscompany.kitchentimer.other.Constants.ACTION_START_OR_RESUME_SERVICE
 import com.toolscompany.kitchentimer.other.Utilities
 import com.toolscompany.kitchentimer.services.CountDownService
+import com.toolscompany.kitchentimer.ui.viewmodels.MainViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.android.synthetic.main.fragment_counter.*
+import timber.log.Timber
 
 @AndroidEntryPoint
 class CounterFragment : Fragment(R.layout.fragment_counter) {
@@ -20,8 +24,10 @@ class CounterFragment : Fragment(R.layout.fragment_counter) {
     private var menu: Menu? = null
 
     private var isRunning = false
-    private var mins = 1
+    private var mins = 1L
     private var previousPos = 0.0
+    private var curDurationInMillis = 999L
+
     override fun onCreateView(
             inflater: LayoutInflater,
             container: ViewGroup?,
@@ -33,6 +39,7 @@ class CounterFragment : Fragment(R.layout.fragment_counter) {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
         circularSlider.setBorderColor(R.color.purple_500)
         circularSlider.setThumbColor(R.color.purple_700)
         circularSlider.setStartAngle(3.14)
@@ -54,8 +61,9 @@ class CounterFragment : Fragment(R.layout.fragment_counter) {
         }
 
         button1.setOnClickListener {
-            sendCommandToService(ACTION_START_OR_RESUME_SERVICE, mins * 60L * 1000L)
+            toggleButton()
         }
+
         subscribeToObserver()
     }
 
@@ -86,10 +94,26 @@ class CounterFragment : Fragment(R.layout.fragment_counter) {
         CountDownService.isRunning.observe(viewLifecycleOwner, Observer {
             updateIsRunning(it)
         })
+
+        CountDownService.durationInMillis.observe(viewLifecycleOwner, Observer {
+            curDurationInMillis = it
+            val formattedTime = Utilities.getFormattedStopWatchTime(curDurationInMillis)
+            minVal.text = formattedTime
+        })
     }
 
     private fun updateIsRunning(isRunning: Boolean) {
         this.isRunning = isRunning
     }
 
+    private fun toggleButton(){
+        if (isRunning){
+            sendCommandToService(ACTION_PAUSE, mins * 60L * 1000L)
+            button1.text = "Pause"
+        }
+        else{
+            sendCommandToService(ACTION_START_OR_RESUME_SERVICE, mins * 60L * 1000L)
+            button1.text = "Start"
+        }
+    }
 }
